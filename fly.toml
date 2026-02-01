@@ -1,0 +1,23 @@
+# fly.toml app configuration file generated for options-day-trading-assistant on 2026-02-01T01:58:00-08:00
+#
+# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
+#
+
+app = "options-day-trading-assistant"
+primary_region = "iad"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  # Set non-secret environment variables here
+  # DATABASE_URL and TDA_API_KEY should be set using 'fly secrets set'
+
+[processes]
+  app = "./start.sh"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "1gb"
+  cpus = 1
+  cpu_kind = "shared"

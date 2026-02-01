@@ -34,11 +34,18 @@ class TradeModel(Base):
 
 def get_db_engine():
     """Create and return database engine."""
-    output_dir = Path("outputs")
-    output_dir.mkdir(parents=True, exist_ok=True)
-    db_path = output_dir / "trades.db"
+    settings = get_settings()
     
-    return create_engine(f"sqlite:///{db_path}")
+    # If using sqlite (typically used if no DATABASE_URL provided, 
+    # but here we enforced DATABASE_URL, however let's keep it robust)
+    if not settings.database_url:
+        # Fallback or error - though we made it mandatory in settings.py
+        output_dir = Path("outputs")
+        output_dir.mkdir(parents=True, exist_ok=True)
+        db_path = output_dir / "trades.db"
+        return create_engine(f"sqlite:///{db_path}")
+
+    return create_engine(settings.database_url)
 
 def init_db():
     """Initialize database tables."""

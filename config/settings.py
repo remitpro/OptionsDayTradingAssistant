@@ -12,6 +12,9 @@ class Settings(BaseSettings):
     tda_api_key: str = Field(..., env='TDA_API_KEY')
     tda_redirect_uri: str = Field(default='https://localhost', env='TDA_REDIRECT_URI')
     tda_token_path: str = Field(default='./config/token.json', env='TDA_TOKEN_PATH')
+
+    # Database
+    database_url: str = Field(..., env='DATABASE_URL')
     
     # Stock Scanner Parameters
     min_stock_price: float = Field(default=20.0, env='MIN_STOCK_PRICE')
