@@ -10,6 +10,10 @@ from src.data import get_client, get_cache
 from src.utils.logger import get_logger
 from src.utils.validators import is_valid_price, calculate_spread_pct
 
+# New Components
+from src.data.validator import DataValidator
+from src.analytics.anomaly import AnomalyDetector
+from src.analytics.indicators import TechnicalIndicators
 
 logger = get_logger(__name__)
 
@@ -22,6 +26,10 @@ class MarketScanner:
         self.settings = get_settings()
         self.client = get_client()
         self.cache = get_cache()
+        
+        # Initialize robust components
+        self.validator = DataValidator()
+        self.anomaly_detector = AnomalyDetector()
     
     def scan_market(self, symbols: List[str]) -> List[Dict[str, Any]]:
         """
@@ -44,6 +52,10 @@ class MarketScanner:
                 if not quote:
                     continue
                 
+                # 1. New: Data Freshness Check
+                if not self.validator.check_freshness(quote.get('quoteTimeInLong', 0)):
+                    continue
+                    
                 # Apply filters
                 if not self._apply_price_filter(quote):
                     continue
@@ -51,12 +63,20 @@ class MarketScanner:
                 if not self._apply_spread_filter(quote):
                     continue
                 
-                # Get price history for ATR and volume
+                # Get price history
                 history = self._get_price_history_with_cache(symbol)
                 if not history:
                     continue
                 
-                # Calculate ATR
+                # 2. New: Anomaly Check
+                candles = history.get('candles', [])
+                if candles:
+                    prices = [c.get('close') for c in candles]
+                    if self.anomaly_detector.is_price_anomaly(quote.get('lastPrice', 0), prices):
+                        logger.warning(f"Rejecting {symbol}: Price anomaly detected")
+                        continue
+                
+                # Calculate ATR (Legacy method preserved for stability or can switch to library)
                 atr = self._calculate_atr(history)
                 if atr is None or atr < self.settings.min_atr:
                     continue
@@ -66,8 +86,22 @@ class MarketScanner:
                 if not self._apply_volume_filter(quote, avg_volume):
                     continue
                 
+                # 3. New: RSI Check
+                item_rsi = 50.0  # Default
+                if len(candles) > 15:
+                    closes = pd.Series([c.get('close') for c in candles])
+                    rsi_series = TechnicalIndicators.calculate_rsi(closes)
+                    item_rsi = rsi_series.iloc[-1]
+                
                 # Analyze VWAP
                 vwap_bias = self._analyze_vwap(quote, history)
+                
+                # Filter by RSI (Basic logic: Don't buy if overbought > 70)
+                if item_rsi > 75 and vwap_bias == 'bullish':
+                     logger.debug(f"Skipping {symbol}: RSI {item_rsi:.1f} (Overbought)")
+                     continue
+                if item_rsi < 25 and vwap_bias == 'bearish':
+                     continue
                 
                 # Candidate passed all filters
                 candidate = {
@@ -78,13 +112,14 @@ class MarketScanner:
                     'volume': quote.get('totalVolume', 0),
                     'avg_volume': avg_volume,
                     'atr': atr,
+                    'rsi': item_rsi,
                     'vwap_bias': vwap_bias,
                     'timestamp': datetime.now().isoformat()
                 }
                 
                 candidates.append(candidate)
                 logger.info(f"✓ {symbol}: ${quote.get('lastPrice', 0):.2f} | "
-                          f"ATR: {atr:.2f} | Bias: {vwap_bias}")
+                          f"ATR: {atr:.2f} | RSI: {item_rsi:.1f} | Bias: {vwap_bias}")
                 
             except Exception as e:
                 logger.error(f"Error scanning {symbol}: {e}")

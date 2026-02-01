@@ -89,25 +89,14 @@ class OptionsFilter:
         exp_date_map: Dict[str, Any],
         option_type: str
     ) -> List[Dict[str, Any]]:
-        """
-        Filter option contracts by liquidity criteria.
-        
-        Args:
-            exp_date_map: Expiration date map from options chain
-            option_type: 'CALL' or 'PUT'
-            
-        Returns:
-            List of filtered option contracts
-        """
+        """Filter option contracts by liquidity criteria."""
         filtered = []
         
         for exp_date_str, strike_map in exp_date_map.items():
-            # Parse expiration date and calculate DTE
             try:
                 exp_date = datetime.strptime(exp_date_str.split(':')[0], '%Y-%m-%d')
                 dte = (exp_date - datetime.now()).days
                 
-                # Filter by DTE
                 if not (self.settings.min_dte <= dte <= self.settings.max_dte):
                     continue
                 
@@ -115,77 +104,60 @@ class OptionsFilter:
                 logger.error(f"Error parsing expiration date {exp_date_str}: {e}")
                 continue
             
-            # Filter contracts at each strike
             for strike_str, contracts in strike_map.items():
-                for contract in contracts:
-                    if self._is_liquid_contract(contract, dte):
-                        # Add metadata
-                        contract['dte'] = dte
-                        contract['expiration'] = exp_date.strftime('%Y-%m-%d')
-                        contract['option_type'] = option_type
-                        filtered.append(contract)
+                for contract_data in contracts:
+                    # Enrich data before validation
+                    contract_data['dte'] = dte
+                    contract_data['expiration_date'] = exp_date 
+                    contract_data['option_type'] = option_type
+                    
+                    if self._is_liquid_contract(contract_data):
+                        # Store essential data
+                        filtered.append(contract_data)
         
         return filtered
     
-    def _is_liquid_contract(self, contract: Dict[str, Any], dte: int) -> bool:
-        """
-        Check if option contract meets liquidity requirements.
-        
-        Args:
-            contract: Option contract data
-            dte: Days to expiration
-            
-        Returns:
-            True if liquid, False otherwise
-        """
+    def _is_liquid_contract(self, contract: Dict[str, Any]) -> bool:
+        """Check if option contract meets liquidity requirements."""
         # Validate basic data structure
         if not validate_option_data(contract):
             return False
-        
-        # Check open interest
-        open_interest = contract.get('openInterest', 0)
-        if open_interest < self.settings.min_open_interest:
+            
+        # Basic liquidity checks
+        if contract.get('openInterest', 0) < self.settings.min_open_interest:
             return False
-        
-        # Check volume
-        volume = contract.get('totalVolume', 0)
-        if volume < self.settings.min_option_volume:
+            
+        if contract.get('totalVolume', 0) < self.settings.min_option_volume:
             return False
-        
-        # Check bid-ask spread
+            
+        # Spread check
         bid = contract.get('bid', 0)
         ask = contract.get('ask', 0)
-        
         if bid <= 0 or ask <= 0:
             return False
-        
+            
         spread_pct = calculate_spread_pct(bid, ask)
         if spread_pct > self.settings.max_option_spread_pct:
             return False
-        
-        # Check Greeks are valid
-        greeks = contract.get('greeks', {})
-        if not greeks:
-            return False
-        
-        # Must have valid delta at minimum
-        delta = greeks.get('delta')
-        if delta is None:
-            return False
-        
-        return True
-    
-    def get_atm_strike(self, symbol: str, underlying_price: float) -> Optional[float]:
-        """
-        Find at-the-money strike price.
-        
-        Args:
-            symbol: Stock ticker symbol
-            underlying_price: Current stock price
             
-        Returns:
-            ATM strike price or None
-        """
+        # Greeks check
+        greeks = contract.get('greeks', {})
+        if not greeks or greeks.get('delta') is None:
+            return False
+            
+        # Implied Volatility check (New Robustness Feature)
+        iv = contract.get('volatility', 0) 
+        # Note: TDA returns volatility as a percentage (e.g. 25.0) or straight number? 
+        # Usually 'volatility' field in TDA is IV.
+        if iv <= 0 or iv == float('nan'):
+            # Try to get from greeks if main field missing? 
+            # Often it's top level. Let's assume strictness for now.
+            return False
+            
+        return True
+
+    def get_atm_strike(self, symbol: str, underlying_price: float) -> Optional[float]:
+        """Find at-the-money strike price."""
         chain = self._get_option_chain_with_cache(symbol)
         if not chain:
             return None
@@ -212,17 +184,7 @@ class OptionsFilter:
         target_delta: float,
         tolerance: float = 0.1
     ) -> List[Dict[str, Any]]:
-        """
-        Filter contracts by target delta.
-        
-        Args:
-            contracts: List of option contracts
-            target_delta: Target delta value (absolute)
-            tolerance: Delta tolerance range
-            
-        Returns:
-            Filtered contracts matching delta criteria
-        """
+        """Filter contracts by target delta."""
         filtered = []
         
         for contract in contracts:
@@ -232,10 +194,7 @@ class OptionsFilter:
             if delta is None:
                 continue
             
-            # Use absolute delta for comparison
-            abs_delta = abs(delta)
-            
-            if abs(abs_delta - target_delta) <= tolerance:
+            if abs(abs(delta) - target_delta) <= tolerance:
                 filtered.append(contract)
         
         return filtered

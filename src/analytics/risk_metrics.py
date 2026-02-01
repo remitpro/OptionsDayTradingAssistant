@@ -236,29 +236,44 @@ class RiskMetrics:
     def calculate_position_size(
         account_size: float,
         max_loss_per_trade: float,
-        trade_max_loss: float
+        trade_max_loss: float,
+        current_portfolio_risk: float = 0.0,
+        max_portfolio_risk: float = 0.05
     ) -> int:
         """
         Calculate appropriate position size based on risk limits.
         
         Args:
             account_size: Total account size
-            max_loss_per_trade: Maximum loss per trade (dollars)
-            trade_max_loss: Max loss for this trade (per contract)
+            max_loss_per_trade: Maximum dollar loss permitted per trade
+            trade_max_loss: Max loss for this specific trade per contract
+            current_portfolio_risk: Current total risk exposure (as a fraction of account, e.g. 0.02)
+            max_portfolio_risk: Maximum allowed total portfolio risk (e.g. 0.05 for 5%)
             
         Returns:
-            Number of contracts to trade
+            Number of contracts to trade (can be 0 if risk too high)
         """
         if trade_max_loss <= 0:
             return 0
+            
+        # 1. Check Portfolio Level Risk Cap
+        if max_portfolio_risk > 0 and current_portfolio_risk >= max_portfolio_risk:
+            logger.warning(f"Portfolio risk limit reached ({current_portfolio_risk:.1%}/{max_portfolio_risk:.1%}). No new positions.")
+            return 0
+            
+        # 2. Risk per trade (Fixed Dollar Amount)
+        max_contracts_by_risk_amt = int(max_loss_per_trade / trade_max_loss)
         
-        # Calculate max contracts based on risk limit
-        max_contracts_by_risk = int(max_loss_per_trade / trade_max_loss)
+        # 3. Percentage of Account Risk (e.g., risk 1-2% of account equity)
+        # Assuming max_loss_per_trade is already set based on this, but let's double check safe bounds
+        # Let's say we never want to lose more than 2% of the account on a single trade
+        safe_max_loss = account_size * 0.02 
+        effective_max_loss = min(max_loss_per_trade, safe_max_loss)
         
-        # Also limit to 2% of account per trade
-        max_contracts_by_account = int((account_size * 0.02) / trade_max_loss)
+        max_contracts_safe = int(effective_max_loss / trade_max_loss)
         
-        # Use the smaller of the two
-        position_size = min(max_contracts_by_risk, max_contracts_by_account)
+        # Take the most conservative number
+        position_size = min(max_contracts_by_risk_amt, max_contracts_safe)
         
-        return max(position_size, 1)  # At least 1 contract
+        # Ensure at least 0 (int conversion could be negative if something is wrong)
+        return max(position_size, 0)

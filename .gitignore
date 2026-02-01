@@ -45,6 +45,11 @@ logs/*.log
 *.db
 *.sqlite
 *.sqlite3
+outputs/trades.db
+
+# Sensitive
+config/token.json
+.env
 
 # Output files (optional - uncomment if you don't want to track)
 # outputs/trades/*.json
