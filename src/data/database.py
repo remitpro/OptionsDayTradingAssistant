@@ -39,8 +39,7 @@ def get_db_engine():
     # If using sqlite (typically used if no DATABASE_URL provided, 
     # but here we enforced DATABASE_URL, however let's keep it robust)
     if not settings.database_url:
-        # Fallback or error - though we made it mandatory in settings.py
-        output_dir = Path("outputs")
+        output_dir = Path(settings.output_dir)
         output_dir.mkdir(parents=True, exist_ok=True)
         db_path = output_dir / "trades.db"
         return create_engine(f"sqlite:///{db_path}")

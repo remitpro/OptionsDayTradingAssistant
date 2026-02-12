@@ -11,7 +11,17 @@ primary_region = "iad"
 
 [env]
   # Set non-secret environment variables here
-  # DATABASE_URL and TDA_API_KEY should be set using 'fly secrets set'
+  # Persist token and configurables
+  TDA_TOKEN_PATH = "/data/token.json"
+  LOG_PATH = "/data/logs"
+  OUTPUT_DIR = "/data/outputs"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = false
+  auto_start_machines = true
+  min_machines_running = 1
 
 [processes]
   app = "./start.sh"
@@ -21,3 +31,7 @@ primary_region = "iad"
   memory = "1gb"
   cpus = 1
   cpu_kind = "shared"
+
+[mounts]
+  source = "options_data"
+  destination = "/data"

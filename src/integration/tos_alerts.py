@@ -128,13 +128,14 @@ Target.SetStyle(Curve.SHORT_DASH);
         return str(filepath)
     
     @staticmethod
-    def generate_batch_alerts(trades: List[Dict[str, Any]], risk_metrics_list: List[Dict[str, Any]]) -> List[str]:
+    def generate_batch_alerts(trades: List[Dict[str, Any]], risk_metrics_list: List[Dict[str, Any]], output_dir: str = "outputs/alerts") -> List[str]:
         """
         Generate alerts for multiple trades.
         
         Args:
             trades: List of trade structures
             risk_metrics_list: List of risk metrics for each trade
+            output_dir: Output directory path
             
         Returns:
             List of file paths
@@ -143,7 +144,7 @@ Target.SetStyle(Curve.SHORT_DASH);
         
         for trade, risk_metrics in zip(trades, risk_metrics_list):
             try:
-                filepath = TOSAlertGenerator.save_alert(trade, risk_metrics)
+                filepath = TOSAlertGenerator.save_alert(trade, risk_metrics, output_dir)
                 filepaths.append(filepath)
             except Exception as e:
                 logger.error(f"Error generating alert for {trade.get('symbol')}: {e}")

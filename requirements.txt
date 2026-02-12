@@ -35,3 +35,7 @@ pytest-mock==3.12.0
 python-dateutil==2.8.2
 autopep8>=2.0.4
 tenacity>=8.2.3
+
+# Web Dashboard
+streamlit>=1.30.0
+mkdocs>=1.5.0\nmkdocs-material>=9.0.0

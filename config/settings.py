@@ -46,6 +46,7 @@ class Settings(BaseSettings):
     # Output Settings
     min_trade_score: float = Field(default=70.0, env='MIN_TRADE_SCORE')
     max_trades_output: int = Field(default=5, env='MAX_TRADES_OUTPUT')
+    output_dir: str = Field(default='outputs', env='OUTPUT_DIR')
     
     # Risk Limits
     max_position_size: int = Field(default=10, env='MAX_POSITION_SIZE')

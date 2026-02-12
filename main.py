@@ -241,7 +241,7 @@ class TradingSystem:
         console.print("\n[bold]Generating outputs...[/bold]")
         
         # Save trades to JSON
-        output_dir = Path("outputs/trades")
+        output_dir = Path(self.settings.output_dir) / "trades"
         output_dir.mkdir(parents=True, exist_ok=True)
         
         timestamp = datetime.now().strftime('%Y-%m-%d')
@@ -253,15 +253,18 @@ class TradingSystem:
         console.print(f"✓ Saved trades: {json_file}")
         
         # Generate ThinkScript alerts
+        # Generate ThinkScript alerts
         risk_metrics_list = [t.get('risk_metrics', {}) for t in trades]
-        alert_files = TOSAlertGenerator.generate_batch_alerts(trades, risk_metrics_list)
+        alerts_dir = str(Path(self.settings.output_dir) / "alerts")
+        alert_files = TOSAlertGenerator.generate_batch_alerts(trades, risk_metrics_list, output_dir=alerts_dir)
         console.print(f"✓ Generated {len(alert_files)} ThinkScript alerts")
         
         # Generate watchlists
-        watchlist_file = WatchlistGenerator.generate_watchlist(trades)
+        watchlists_dir = str(Path(self.settings.output_dir) / "watchlists")
+        watchlist_file = WatchlistGenerator.generate_watchlist(trades, output_dir=watchlists_dir)
         console.print(f"✓ Generated watchlist: {watchlist_file}")
         
-        detailed_watchlist = WatchlistGenerator.generate_detailed_watchlist(trades, risk_metrics_list)
+        detailed_watchlist = WatchlistGenerator.generate_detailed_watchlist(trades, risk_metrics_list, output_dir=watchlists_dir)
         console.print(f"✓ Generated detailed watchlist: {detailed_watchlist}")
         
         # Save scan results to cache

@@ -73,10 +73,56 @@ python main.py
 6.  **Store**: Trade is saved to `trades.db` (SQLite).
 7.  **Visualize**: Trade appears on the Dashboard.
 
+## ☁️ Production Deployment (Fly.io)
+
+The application is configured for deployment on Fly.io as a single-container application running both the scanner loop and the Streamlit dashboard.
+
+### 1. Prerequisites
+- [flyctl](https://fly.io/docs/hands-on/install-flyctl/) installed
+- A valid `token.json` generated locally via `tda-api` authentication flow
+
+### 2. Initial Setup
+```bash
+# Initialize the app (if not already done)
+fly launch --no-deploy
+```
+
+### 3. Configure Persistence
+Create a persistent volume to store the TDA token and trade database:
+```bash
+fly volumes create options_data --region iad --size 1
+```
+
+### 4. Set Secrets
+```bash
+fly secrets set \
+    TDA_API_KEY=your_api_key_here \
+    DATABASE_URL="sqlite:////data/trades.db"
+```
+
+### 5. Deploy
+```bash
+fly deploy
+```
+
+### 6. Upload Token (CRITICAL)
+The TDA API requires a valid token file to refresh the session. Since the container filesystem is ephemeral, you **MUST** upload your local `token.json` to the persistent volume.
+
+```bash
+# Open an SFTP shell to the running VM
+fly sftp shell
+
+# Inside sftp shell:
+put config/token.json /data/token.json
+```
+
+Once uploaded, the app will automatically pick up the token from `/data/token.json` (configured via `fly.toml` environment variables).
+
 ## 📂 Data & Persistence
 
-- **Database**: All trades are saved to `outputs/trades.db`.
-- **Artifacts**: Alerts and Watchlists are still generated in `outputs/`.
+- **Database**: By default, trades are saved to a SQLite database. In production, this is located on the persistent volume at `/data/trades.db`.
+- **Output Files**: Generated alerts and watchlists are saved to `/data/outputs/` (mapped via `OUTPUT_DIR` environment variable).
+- **Logs**: Logs are stored in `/data/logs/`.
 
 ## 🧪 Verification
 
@@ -94,5 +140,5 @@ python verify_analytics.py
 Personal project. Use issues for bugs.
 
 ## ⚠️ Known Issues
-- Requires valid `token.json` generated via the `tda-api` auth flow manually first time.
+- Requires valid `token.json` manually uploaded to the persistent volume.
 - Historical backtests currently use simulated logic until a historical data feed is connected.
