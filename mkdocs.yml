@@ -1,7 +1,7 @@
 site_name: Options Day-Trading Assistant
 site_description: An agentic trading assistant for high-probability options trades.
 site_author: Teejay
-site_url: https://options-day-trading-assistant.fly.dev/
+site_url: https://remitpro.github.io/OptionsDayTradingAssistant/
 
 theme:
   name: material
